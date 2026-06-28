@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MEDIA LOG">
+<meta name="theme-color" content="#f7f5f0">
+<title>MEDIA LOG</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f7f5f0;
+    --vermilion: #c0392b;
+    --rule: #d0c8bc;
+    --muted: #8a8078;
+    --done-bg: #ede9e3;
+    --white: #ffffff;
+  }
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+    font-size: 16px;
+    overscroll-behavior: none;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── ヘッダー ── */
+  header {
+    padding: 20px 20px 0;
+    border-bottom: 2px solid var(--ink);
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .masthead-rule { flex: 1; height: 2px; background: var(--ink); }
+  .masthead h1 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.25em;
+    font-family: 'Georgia', 'Times New Roman', serif;
+  }
+  .date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+  .nav-btn {
+    width: 36px; height: 36px;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .date-block {
+    flex: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .date-str { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+  .today-btn {
+    background: var(--vermilion);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    font-size: 11px;
+    padding: 2px 10px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    font-family: inherit;
+  }
+  .dow-row {
+    display: flex;
+    margin-bottom: -1px;
+  }
+  .dow-btn {
+    flex: 1;
+    padding: 7px 0;
+    font-size: 12px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    font-family: inherit;
+  }
+  .dow-btn.active { color: var(--vermilion); border-bottom-color: var(--vermilion); }
+  .dow-btn.is-today { color: var(--ink); }
+
+  /* ── プログレス ── */
+  .progress-wrap { padding: 14px 20px 0; }
+  .progress-bar {
+    height: 4px; background: var(--rule);
+    border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--vermilion);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    margin-top: 5px;
+  }
+  .progress-count { font-size: 11px; color: var(--muted); }
+  .progress-pct { font-size: 11px; color: var(--vermilion); font-weight: 700; }
+
+  /* ── フィルター ── */
+  .filter-row { display: flex; gap: 8px; padding: 12px 20px 0; }
+  .filter-btn {
+    font-size: 12px; padding: 4px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    background: none; color: var(--muted);
+    cursor: pointer; letter-spacing: 0.04em;
+    font-family: inherit;
+  }
+  .filter-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* ── メイン ── */
+  main { padding: 4px 20px 20px; flex: 1; }
+  .section { margin-top: 20px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .section-label {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.2em; color: var(--muted);
+    white-space: nowrap;
+  }
+  .section-line { flex: 1; height: 1px; background: var(--rule); }
+  ul { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+  /* ── アイテム ── */
+  li.item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--white);
+    border: 1px solid var(--rule);
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  li.item.done { background: var(--done-bg); border-color: var(--done-bg); }
+  .item-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+  .item-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .item-label { font-size: 14px; font-weight: 600; line-height: 1.3; display: flex; align-items: center; gap: 5px; }
+  li.done .item-label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--rule); }
+  .priority-dot { color: var(--vermilion); font-size: 8px; flex-shrink: 0; }
+  .item-note { font-size: 11px; color: var(--muted); }
+  .checkbox {
+    width: 22px; height: 22px;
+    border: 1.5px solid var(--rule);
+    border-radius: 3px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+    transition: all 0.15s;
+  }
+  li.done .checkbox { background: var(--vermilion); border-color: var(--vermilion); }
+
+  /* ── 空日 ── */
+  .empty-day {
+    text-align: center; padding: 50px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .empty-icon { font-size: 36px; }
+  .empty-text { font-size: 13px; color: var(--muted); letter-spacing: 0.05em; }
+
+  /* ── フッター ── */
+  footer {
+    text-align: center; padding: 20px 0 env(safe-area-inset-bottom, 10px);
+    font-size: 10px; color: var(--rule);
+    letter-spacing: 0.2em;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── サマリー／エクスポートボタン ── */
+  .toolbar {
+    display: flex; gap: 8px; padding: 10px 20px 0;
+    justify-content: flex-end;
+  }
+  .tool-btn {
+    font-size: 11px; padding: 4px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    background: none; color: var(--muted);
+    cursor: pointer; letter-spacing: 0.04em;
+    font-family: inherit;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tool-btn:active { background: var(--rule); }
+
+  /* ── モーダル共通 ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(26,26,26,0.6); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--paper); width: 100%; max-width: 480px;
+    border-radius: 16px 16px 0 0;
+    max-height: 85dvh; overflow-y: auto;
+    padding: 24px 20px env(safe-area-inset-bottom, 20px);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title {
+    font-size: 15px; font-weight: 700; letter-spacing: 0.08em;
+    font-family: 'Georgia', serif;
+  }
+  .modal-close {
+    background: none; border: none; font-size: 22px;
+    color: var(--muted); cursor: pointer; line-height: 1;
+  }
+
+  /* ── サマリーモーダル ── */
+  .summary-month-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .summary-month-label { font-size: 14px; font-weight: 600; }
+  .summary-nav-btn {
+    background: none; border: 1px solid var(--rule);
+    border-radius: 4px; width: 30px; height: 30px;
+    font-size: 16px; cursor: pointer; color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .summary-big {
+    text-align: center; margin-bottom: 20px;
+    padding: 16px; background: var(--white);
+    border: 1px solid var(--rule); border-radius: 8px;
+  }
+  .summary-big-pct { font-size: 40px; font-weight: 800; color: var(--vermilion); font-family: 'Georgia', serif; }
+  .summary-big-label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; margin-top: 2px; }
+  .summary-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-bottom: 20px;
+  }
+  .summary-card {
+    background: var(--white); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 12px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .summary-card-val { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .summary-card-lbl { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  .summary-section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.2em;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .summary-item-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--rule);
+  }
+  .summary-item-row:last-child { border-bottom: none; }
+  .summary-item-name { flex: 1; font-size: 13px; }
+  .summary-item-bar-wrap {
+    width: 80px; height: 6px;
+    background: var(--rule); border-radius: 3px; overflow: hidden;
+  }
+  .summary-item-bar { height: 100%; background: var(--vermilion); border-radius: 3px; }
+  .summary-item-pct { font-size: 11px; color: var(--muted); width: 32px; text-align: right; }
+
+  /* ── エクスポートモーダル ── */
+  .export-option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 14px;
+    background: var(--white); border: 1px solid var(--rule);
+    border-radius: 8px; cursor: pointer; margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .export-option:active { border-color: var(--vermilion); }
+  .export-icon { font-size: 28px; }
+  .export-info { flex: 1; }
+  .export-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .export-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .export-arrow { color: var(--muted); font-size: 18px; }
+  .export-range {
+    margin-bottom: 16px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .export-range label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .export-range input {
+    flex: 1; padding: 6px 10px; border: 1px solid var(--rule);
+    border-radius: 4px; font-size: 13px; font-family: inherit;
+    background: var(--white); color: var(--ink);
+  }
+
+  /* ── PWAインストールバナー ── */
+  #install-banner {
+    display: none;
+    position: fixed; bottom: env(safe-area-inset-bottom, 0); left: 0; right: 0;
+    background: var(--ink); color: var(--paper);
+    padding: 14px 20px; z-index: 100;
+    max-width: 480px; margin: 0 auto;
+  }
+  #install-banner p { font-size: 12px; margin-bottom: 8px; line-height: 1.5; }
+  #install-banner .banner-actions { display: flex; gap: 8px; }
+  #install-btn {
+    background: var(--vermilion); color: #fff; border: none;
+    border-radius: 4px; padding: 6px 16px; font-size: 13px;
+    cursor: pointer; font-family: inherit;
+  }
+  #dismiss-btn {
+    background: none; color: var(--muted); border: none;
+    font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  #ios-hint {
+    display: none;
+    position: fixed; bottom: env(safe-area-inset-bottom, 0); left: 0; right: 0;
+    background: var(--ink); color: var(--paper);
+    padding: 16px 20px; z-index: 100; text-align: center;
+    max-width: 480px; margin: 0 auto;
+  }
+  #ios-hint p { font-size: 12px; line-height: 1.6; }
+  #ios-hint button {
+    margin-top: 10px; background: none; color: var(--muted);
+    border: none; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="masthead">
+      <span class="masthead-rule"></span>
+      <h1>MEDIA LOG</h1>
+      <span class="masthead-rule"></span>
+    </div>
+    <div class="date-nav">
+      <button class="nav-btn" id="prev-btn">‹</button>
+      <div class="date-block">
+        <span class="date-str" id="date-str"></span>
+        <button class="today-btn" id="today-btn" style="display:none">今日</button>
+      </div>
+      <button class="nav-btn" id="next-btn">›</button>
+    </div>
+    <div class="dow-row" id="dow-row"></div>
+  </header>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-label">
+      <span class="progress-count" id="progress-count"></span>
+      <span class="progress-pct" id="progress-pct"></span>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" id="filter-priority">⭕️ 優先</button>
+    <button class="filter-btn" id="filter-all">全て</button>
+  </div>
+  <div class="toolbar">
+    <button class="tool-btn" id="summary-btn">📊 サマリー</button>
+    <button class="tool-btn" id="export-btn">📤 エクスポート</button>
+  </div>
+
+  <main id="main"></main>
+
+  <!-- サマリーモーダル -->
+  <div class="modal-overlay" id="summary-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">MONTHLY SUMMARY</span>
+        <button class="modal-close" id="summary-close">×</button>
+      </div>
+      <div class="summary-month-nav">
+        <button class="summary-nav-btn" id="sum-prev">‹</button>
+        <span class="summary-month-label" id="sum-month-label"></span>
+        <button class="summary-nav-btn" id="sum-next">›</button>
+      </div>
+      <div id="summary-content"></div>
+    </div>
+  </div>
+
+  <!-- エクスポートモーダル -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">EXPORT DATA</span>
+        <button class="modal-close" id="export-close">×</button>
+      </div>
+      <div class="export-range">
+        <label>期間</label>
+        <input type="month" id="export-from">
+        <span style="color:var(--muted);font-size:12px">〜</span>
+        <input type="month" id="export-to">
+      </div>
+      <div class="export-option" id="do-csv">
+        <span class="export-icon">📊</span>
+        <div class="export-info">
+          <div class="export-title">CSV形式</div>
+          <div class="export-desc">Excel・Numbers・Googleスプレッドシートで開けます</div>
+        </div>
+        <span class="export-arrow">›</span>
+      </div>
+      <div class="export-option" id="do-json">
+        <span class="export-icon">🗂️</span>
+        <div class="export-info">
+          <div class="export-title">JSON形式</div>
+          <div class="export-desc">生データのバックアップ・別デバイスへの移行に</div>
+        </div>
+        <span class="export-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>MEDIA LOG · <span id="year"></span></footer>
+</div>
+
+<!-- PWAバナー（Android/Chrome） -->
+<div id="install-banner">
+  <p>ホーム画面に追加してアプリとして使えます</p>
+  <div class="banner-actions">
+    <button id="install-btn">ホーム画面に追加</button>
+    <button id="dismiss-btn">あとで</button>
+  </div>
+</div>
+
+<!-- iOSヒント -->
+<div id="ios-hint">
+  <p>📱 ホーム画面に追加する方法<br>Safari の <strong>共有ボタン（□↑）</strong> → <strong>「ホーム画面に追加」</strong></p>
+  <button id="ios-dismiss-btn">閉じる</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// データ定義
+// ─────────────────────────────────────────────
+const DAILY = [
+  { id:"nikkei", label:"日経新聞", note:"楽天証券", icon:"📰", priority:true },
+];
+
+const WEEKLY = {
+  1:[
+    { id:"toyo",         label:"週刊東洋経済",   note:"楽天マガジン",       icon:"📖", priority:true },
+    { id:"diamond",      label:"週刊ダイヤモンド", note:"楽天マガジン",      icon:"📖", priority:true },
+    { id:"economist_jp", label:"週刊エコノミスト", note:"楽天マガジン",      icon:"📖", priority:true },
+    { id:"aera",         label:"AERA",          note:"楽天マガジン",       icon:"📖", priority:false },
+    { id:"nikkei_biz",   label:"日経ビジネス",   note:"📚図書館",          icon:"📚", priority:false },
+    { id:"tsundoku",     label:"積読チャンネル",  note:"YouTube",          icon:"📺", priority:true },
+    { id:"gendai",       label:"週刊現代",       note:"楽天マガジン（隔週）", icon:"📖", priority:false },
+  ],
+  2:[
+    { id:"newsweek_jp",  label:"Newsweek日本版", note:"楽天マガジン", icon:"📖", priority:false },
+    { id:"sun_mainichi", label:"サンデー毎日",   note:"楽天マガジン", icon:"📖", priority:false },
+    { id:"yuru_gengo",   label:"ゆる言語学ラジオ", note:"YouTube",   icon:"📺", priority:true },
+  ],
+  4:[
+    { id:"bunshun", label:"週刊文春", note:"楽天マガジン", icon:"📖", priority:false },
+    { id:"shincho",  label:"週刊新潮", note:"楽天マガジン", icon:"📖", priority:false },
+  ],
+  5:[
+    { id:"president", label:"PRESIDENT", note:"楽天マガジン（隔週）", icon:"📖", priority:true },
+  ],
+  6:[
+    { id:"the_economist", label:"The Economist", note:"📚図書館", icon:"📚", priority:false },
+  ],
+  0:[
+    { id:"newsweek_en", label:"Newsweek",    note:"楽天マガジン", icon:"📖", priority:false },
+    { id:"time",        label:"TIME",         note:"楽天マガジン", icon:"📖", priority:false },
+    { id:"yuru_cs",     label:"ゆるコンピュータ科学ラジオ", note:"YouTube", icon:"📺", priority:true },
+  ],
+};
+
+function getNthWeekday(year, month, weekday, n) {
+  const first = new Date(year, month - 1, 1);
+  const firstWd = first.getDay();
+  return 1 + ((weekday - firstWd + 7) % 7) + (n - 1) * 7;
+}
+
+function getMonthlyItems(date) {
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  const y = date.getFullYear();
+  const firstThu = getNthWeekday(y, m, 4, 1);
+  const thirdThu = getNthWeekday(y, m, 4, 3);
+  const items = [];
+  if (d === firstThu) items.push({ id:"nikkei_money", label:"日経マネー",      note:"楽天マガジン（第1木）", icon:"💴", priority:true });
+  if (d === thirdThu) items.push({ id:"diamond_zai",  label:"ダイヤモンドZAI", note:"楽天マガジン（第3木）", icon:"💴", priority:true });
+  if (d === 5)  {
+    if ([1,4,7,10].includes(m))  items.push({ id:"aera_kids",        label:"AERA with Kids",    note:"楽天マガジン（四半期）", icon:"📖", priority:false });
+    if ([2,5,8,11].includes(m))  items.push({ id:"president_family", label:"プレジデントFamily", note:"楽天マガジン（四半期）", icon:"📖", priority:false });
+    items.push({ id:"cnn_express", label:"CNN ENGLISH EXPRESS", note:"毎月5日", icon:"📖", priority:false });
+  }
+  if (d === 10) items.push({ id:"chuokoron",  label:"中央公論",    note:"📚図書館（毎月10日）",   icon:"📚", priority:false });
+  if (d === 20) items.push({ id:"wedge",      label:"Wedge",       note:"楽天マガジン（毎月20日）", icon:"📖", priority:false });
+  if (d === 25) items.push({ id:"nikkei_sci", label:"日経サイエンス", note:"📚図書館（毎月25日）",  icon:"📚", priority:false });
+  if (d === 26) items.push({ id:"newton",     label:"科学雑誌Newton", note:"📚図書館（毎月26日）", icon:"📚", priority:false });
+  if (d === 27 && m % 2 === 1) items.push({ id:"econ_semi", label:"経済セミナー", note:"📚図書館（奇数月27日）", icon:"📚", priority:true });
+  return items;
+}
+
+// ─────────────────────────────────────────────
+// 状態
+// ─────────────────────────────────────────────
+const DOW_LABELS = ["日","月","火","水","木","金","土"];
+const DOW_NAMES  = ["日曜日","月曜日","火曜日","水曜日","木曜日","金曜日","土曜日"];
+let viewDate  = new Date();
+let showAll   = false;
+let todayStr  = toDateStr(new Date());
+
+function toDateStr(d) { return d.toISOString().slice(0,10); }
+function storageKey(d){ return "medialog-" + toDateStr(d); }
+
+function loadChecks(date) {
+  try { const r = localStorage.getItem(storageKey(date)); return r ? JSON.parse(r) : {}; }
+  catch { return {}; }
+}
+function saveChecks(date, checks) {
+  try { localStorage.setItem(storageKey(date), JSON.stringify(checks)); } catch {}
+}
+
+let checks = loadChecks(viewDate);
+
+// ─────────────────────────────────────────────
+// レンダリング
+// ─────────────────────────────────────────────
+function render() {
+  const dow = viewDate.getDay();
+  const isToday = toDateStr(viewDate) === todayStr;
+
+  // 日付文字列
+  document.getElementById("date-str").textContent =
+    viewDate.toLocaleDateString("ja-JP", {year:"numeric", month:"long", day:"numeric", weekday:"long"});
+  document.getElementById("today-btn").style.display = isToday ? "none" : "";
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  // 曜日タブ
+  const dowRow = document.getElementById("dow-row");
+  dowRow.innerHTML = "";
+  DOW_LABELS.forEach((lbl, i) => {
+    const btn = document.createElement("button");
+    btn.className = "dow-btn" +
+      (i === dow ? " active" : "") +
+      (i === new Date().getDay() && !isToday ? " is-today" : "");
+    btn.textContent = lbl;
+    btn.onclick = () => {
+      const t = new Date(viewDate);
+      t.setDate(t.getDate() + (i - dow));
+      viewDate = t;
+      checks = loadChecks(viewDate);
+      render();
+    };
+    dowRow.appendChild(btn);
+  });
+
+  // アイテム収集
+  const weeklyItems  = WEEKLY[dow] || [];
+  const monthlyItems = getMonthlyItems(viewDate);
+  const allItems = [...DAILY, ...weeklyItems, ...monthlyItems];
+
+  const displayItems = showAll ? allItems : allItems.filter(i => i.priority);
+  const done  = displayItems.filter(i => checks[i.id]).length;
+  const total = displayItems.length;
+  const pct   = total > 0 ? Math.round(done/total*100) : 0;
+
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("progress-count").textContent = done + " / " + total;
+  document.getElementById("progress-pct").textContent   = pct + "%";
+
+  // メイン
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+
+  renderSection(main, "毎日", DAILY, showAll);
+  if (weeklyItems.length > 0)  renderSection(main, DOW_NAMES[dow], weeklyItems, showAll);
+  if (monthlyItems.length > 0) renderSection(main, "今日発行", monthlyItems, showAll);
+
+  if (weeklyItems.length === 0 && monthlyItems.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-day";
+    empty.innerHTML = `<span class="empty-icon">📅</span><p class="empty-text">今日の定期コンテンツはありません</p>`;
+    main.appendChild(empty);
+  }
+}
+
+function renderSection(parent, label, items, all) {
+  const visible = all ? items : items.filter(i => i.priority);
+  if (visible.length === 0) return;
+
+  const sec = document.createElement("div");
+  sec.className = "section";
+  sec.innerHTML = `<div class="section-header">
+    <span class="section-label">${label}</span>
+    <span class="section-line"></span>
+  </div>`;
+  const ul = document.createElement("ul");
+
+  visible.forEach(item => {
+    const li = document.createElement("li");
+    li.className = "item" + (checks[item.id] ? " done" : "");
+    li.innerHTML = `
+      <span class="item-icon">${item.icon}</span>
+      <div class="item-body">
+        <span class="item-label">
+          ${item.priority ? '<span class="priority-dot">●</span>' : ""}
+          ${item.label}
+        </span>
+        <span class="item-note">${item.note}</span>
+      </div>
+      <span class="checkbox">${checks[item.id] ? "✓" : ""}</span>
+    `;
+    li.onclick = () => {
+      checks[item.id] = !checks[item.id];
+      saveChecks(viewDate, checks);
+      render();
+    };
+    ul.appendChild(li);
+  });
+
+  sec.appendChild(ul);
+  parent.appendChild(sec);
+}
+
+// ─────────────────────────────────────────────
+// イベント
+// ─────────────────────────────────────────────
+document.getElementById("prev-btn").onclick = () => {
+  viewDate.setDate(viewDate.getDate() - 1);
+  checks = loadChecks(viewDate);
+  render();
+};
+document.getElementById("next-btn").onclick = () => {
+  viewDate.setDate(viewDate.getDate() + 1);
+  checks = loadChecks(viewDate);
+  render();
+};
+document.getElementById("today-btn").onclick = () => {
+  viewDate = new Date();
+  checks = loadChecks(viewDate);
+  render();
+};
+document.getElementById("filter-priority").onclick = () => {
+  showAll = false;
+  document.getElementById("filter-priority").classList.add("active");
+  document.getElementById("filter-all").classList.remove("active");
+  render();
+};
+document.getElementById("filter-all").onclick = () => {
+  showAll = true;
+  document.getElementById("filter-all").classList.add("active");
+  document.getElementById("filter-priority").classList.remove("active");
+  render();
+};
+
+// ─────────────────────────────────────────────
+// PWA: Android インストールプロンプト
+// ─────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem("install-dismissed")) {
+    document.getElementById("install-banner").style.display = "block";
+  }
+});
+document.getElementById("install-btn").onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("install-banner").style.display = "none";
+};
+document.getElementById("dismiss-btn").onclick = () => {
+  localStorage.setItem("install-dismissed", "1");
+  document.getElementById("install-banner").style.display = "none";
+};
+
+// ─────────────────────────────────────────────
+// PWA: iOS ヒント（Safariのみ、未インストール時）
+// ─────────────────────────────────────────────
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone = window.navigator.standalone === true;
+if (isIOS && !isInStandalone && !localStorage.getItem("ios-hint-dismissed")) {
+  setTimeout(() => {
+    document.getElementById("ios-hint").style.display = "block";
+  }, 2000);
+}
+document.getElementById("ios-dismiss-btn").onclick = () => {
+  localStorage.setItem("ios-hint-dismissed", "1");
+  document.getElementById("ios-hint").style.display = "none";
+};
+
+// ─────────────────────────────────────────────
+// Service Worker（オフライン対応）
+// ─────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  const swCode = `
+    const CACHE = "medialog-v1";
+    self.addEventListener("install", e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(["/"])));
+    });
+    self.addEventListener("fetch", e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request))
+      );
+    });
+  `;
+  const blob = new Blob([swCode], { type: "application/javascript" });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
+// ─────────────────────────────────────────────
+// 全アイテムマスタ（サマリー・CSV用）
+// ─────────────────────────────────────────────
+const ALL_ITEMS_MASTER = [
+  ...DAILY,
+  ...(WEEKLY[1]||[]), ...(WEEKLY[2]||[]), ...(WEEKLY[4]||[]),
+  ...(WEEKLY[5]||[]), ...(WEEKLY[6]||[]), ...(WEEKLY[0]||[]),
+  { id:"nikkei_money",    label:"日経マネー",           note:"第1木" },
+  { id:"diamond_zai",     label:"ダイヤモンドZAI",       note:"第3木" },
+  { id:"aera_kids",       label:"AERA with Kids",       note:"四半期" },
+  { id:"president_family",label:"プレジデントFamily",    note:"四半期" },
+  { id:"cnn_express",     label:"CNN ENGLISH EXPRESS",  note:"毎月5日" },
+  { id:"chuokoron",       label:"中央公論",              note:"毎月10日" },
+  { id:"wedge",           label:"Wedge",                note:"毎月20日" },
+  { id:"nikkei_sci",      label:"日経サイエンス",        note:"毎月25日" },
+  { id:"newton",          label:"科学雑誌Newton",        note:"毎月26日" },
+  { id:"econ_semi",       label:"経済セミナー",          note:"奇数月27日" },
+];
+// 重複除去
+const MASTER_MAP = {};
+ALL_ITEMS_MASTER.forEach(i => { MASTER_MAP[i.id] = i; });
+
+// 指定月の全日付を返す
+function getDatesInMonth(year, month) {
+  const dates = [];
+  const d = new Date(year, month - 1, 1);
+  while (d.getMonth() === month - 1) {
+    dates.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+
+// ある日のアイテムIDセット
+function getItemIdsForDate(date) {
+  const dow = date.getDay();
+  const weekly = WEEKLY[dow] || [];
+  const monthly = getMonthlyItems(date);
+  return new Set([...DAILY, ...weekly, ...monthly].map(i => i.id));
+}
+
+// ─────────────────────────────────────────────
+// サマリー
+// ─────────────────────────────────────────────
+let summaryYear  = new Date().getFullYear();
+let summaryMonth = new Date().getMonth() + 1;
+
+function renderSummary() {
+  document.getElementById("sum-month-label").textContent =
+    `${summaryYear}年${summaryMonth}月`;
+
+  const dates = getDatesInMonth(summaryYear, summaryMonth);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // 今月の対象日（今日以前）
+  const pastDates = dates.filter(d => { const dd=new Date(d); dd.setHours(0,0,0,0); return dd<=today; });
+
+  // 集計
+  let totalExpected = 0, totalDone = 0;
+  const itemStats = {}; // id -> { expected, done }
+
+  pastDates.forEach(date => {
+    const ids = getItemIdsForDate(date);
+    const ch  = loadChecks(date);
+    ids.forEach(id => {
+      if (!itemStats[id]) itemStats[id] = { expected:0, done:0, label: MASTER_MAP[id]?.label || id };
+      itemStats[id].expected++;
+      if (ch[id]) itemStats[id].done++;
+      totalExpected++;
+      if (ch[id]) totalDone++;
+    });
+  });
+
+  const overallPct = totalExpected > 0 ? Math.round(totalDone/totalExpected*100) : 0;
+  const streak = calcStreak(dates, today);
+
+  const el = document.getElementById("summary-content");
+  el.innerHTML = `
+    <div class="summary-big">
+      <div class="summary-big-pct">${overallPct}%</div>
+      <div class="summary-big-label">今月の達成率（${pastDates.length}日分）</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card-val">${totalDone}</div>
+        <div class="summary-card-lbl">チェック済み</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-val">${totalExpected - totalDone}</div>
+        <div class="summary-card-lbl">未チェック</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-val">${streak.current}日</div>
+        <div class="summary-card-lbl">現在の連続達成</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-val">${streak.best}日</div>
+        <div class="summary-card-lbl">今月最長連続</div>
+      </div>
+    </div>
+    <div class="summary-section-title">メディア別達成率</div>
+    <div>
+      ${Object.values(itemStats)
+        .sort((a,b) => (b.done/b.expected) - (a.done/a.expected))
+        .map(s => {
+          const pct = Math.round(s.done/s.expected*100);
+          return `<div class="summary-item-row">
+            <span class="summary-item-name">${s.label}</span>
+            <div class="summary-item-bar-wrap">
+              <div class="summary-item-bar" style="width:${pct}%"></div>
+            </div>
+            <span class="summary-item-pct">${pct}%</span>
+          </div>`;
+        }).join("")}
+    </div>
+  `;
+}
+
+function calcStreak(dates, today) {
+  // 各日が「全優先アイテム達成」かどうかで連続計算（簡易版：1件以上チェックで達成日とみなす）
+  let current = 0, best = 0, tmp = 0;
+  const pastDates = dates.filter(d => { const dd=new Date(d); dd.setHours(0,0,0,0); return dd<=today; });
+  pastDates.forEach(date => {
+    const ch = loadChecks(date);
+    const ids = getItemIdsForDate(date);
+    const done = [...ids].filter(id => ch[id]).length;
+    if (done > 0) { tmp++; if(tmp>best) best=tmp; } else tmp=0;
+  });
+  // 現在の連続（末尾から）
+  for (let i = pastDates.length-1; i >= 0; i--) {
+    const ch = loadChecks(pastDates[i]);
+    const ids = getItemIdsForDate(pastDates[i]);
+    const done = [...ids].filter(id => ch[id]).length;
+    if (done > 0) current++; else break;
+  }
+  return { current, best };
+}
+
+document.getElementById("summary-btn").onclick = () => {
+  summaryYear  = new Date().getFullYear();
+  summaryMonth = new Date().getMonth() + 1;
+  renderSummary();
+  document.getElementById("summary-modal").classList.add("open");
+};
+document.getElementById("summary-close").onclick = () =>
+  document.getElementById("summary-modal").classList.remove("open");
+document.getElementById("sum-prev").onclick = () => {
+  summaryMonth--;
+  if (summaryMonth < 1) { summaryMonth=12; summaryYear--; }
+  renderSummary();
+};
+document.getElementById("sum-next").onclick = () => {
+  summaryMonth++;
+  if (summaryMonth > 12) { summaryMonth=1; summaryYear++; }
+  renderSummary();
+};
+
+// ─────────────────────────────────────────────
+// エクスポート
+// ─────────────────────────────────────────────
+function initExportDates() {
+  const now = new Date();
+  const ym = (y,m) => `${y}-${String(m).padStart(2,"0")}`;
+  document.getElementById("export-from").value = ym(now.getFullYear(), now.getMonth()+1);
+  document.getElementById("export-to").value   = ym(now.getFullYear(), now.getMonth()+1);
+}
+
+function collectExportData() {
+  const fromVal = document.getElementById("export-from").value;
+  const toVal   = document.getElementById("export-to").value;
+  if (!fromVal || !toVal) return [];
+
+  const [fy,fm] = fromVal.split("-").map(Number);
+  const [ty,tm] = toVal.split("-").map(Number);
+
+  const rows = [];
+  let year=fy, month=fm;
+  while (year < ty || (year===ty && month<=tm)) {
+    getDatesInMonth(year, month).forEach(date => {
+      const dateStr = toDateStr(date);
+      const ch = loadChecks(date);
+      const ids = getItemIdsForDate(date);
+      ids.forEach(id => {
+        rows.push({
+          date: dateStr,
+          label: MASTER_MAP[id]?.label || id,
+          checked: ch[id] ? 1 : 0,
+        });
+      });
+    });
+    month++;
+    if (month > 12) { month=1; year++; }
+  }
+  return rows;
+}
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("export-btn").onclick = () => {
+  initExportDates();
+  document.getElementById("export-modal").classList.add("open");
+};
+document.getElementById("export-close").onclick = () =>
+  document.getElementById("export-modal").classList.remove("open");
+
+document.getElementById("do-csv").onclick = () => {
+  const rows = collectExportData();
+  if (!rows.length) { alert("データがありません"); return; }
+  const header = "日付,メディア,チェック\n";
+  const body   = rows.map(r => `${r.date},${r.label},${r.checked}`).join("\n");
+  const bom    = "\uFEFF"; // Excel用BOM
+  downloadFile(bom + header + body, "media-log.csv", "text/csv;charset=utf-8");
+  document.getElementById("export-modal").classList.remove("open");
+};
+
+document.getElementById("do-json").onclick = () => {
+  // localStorage全データ
+  const data = {};
+  for (let i=0; i<localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.startsWith("medialog-")) {
+      try { data[k.replace("medialog-","")] = JSON.parse(localStorage.getItem(k)); } catch {}
+    }
+  }
+  downloadFile(JSON.stringify(data, null, 2), "media-log-backup.json", "application/json");
+  document.getElementById("export-modal").classList.remove("open");
+};
+
+// 初期レンダリング
+render();
+</script>
+</body>
+</html>
